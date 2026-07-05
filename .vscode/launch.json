@@ -1,0 +1,47 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Pybricks: Run on Robot",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/.vscode/run_pybricks.py",
+            "args": [
+                "run",
+                "--name",
+                "${config:pybricks.robotName}",
+                "ble",
+                "${file}"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Pybricks: Run on Robot (Select)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/.vscode/run_pybricks.py",
+            "args": [
+                "run",
+                "--name",
+                "${input:robotName}",
+                "ble",
+                "${file}"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ],
+    "inputs": [
+        {
+            "id": "robotName",
+            "type": "pickString",
+            "description": "Select robot to run on (edit this list to match your hubs)",
+            "options": [
+                "MyRobot",
+                "PracticeRobot"
+            ],
+            "default": "MyRobot"
+        }
+    ]
+}

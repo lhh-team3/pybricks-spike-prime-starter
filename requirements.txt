@@ -1,0 +1,3 @@
+pybricks==3.6.*
+pybricksdev==1.1.*
+black==23.1.0

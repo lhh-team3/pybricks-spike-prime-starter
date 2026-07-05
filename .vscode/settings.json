@@ -1,0 +1,18 @@
+{
+    "editor.rulers": [
+        80
+    ],
+    "cSpell.words": [
+        "pupdevices",
+        "pybricks",
+        "pybricksdev",
+        "venv"
+    ],
+    "pybricks.robotName": "MyRobot",
+    "python.debugpy.debugJustMyCode": false,
+    "debug.saveBeforeStart": "allEditorsInActiveGroup",
+    "files.exclude": {
+        "**/__pycache__": true,
+        ".venv": true
+    }
+}
