@@ -4,7 +4,8 @@ To make a new mission:
   1. Copy this file and name it after your mission,
      like mission_03_deliver_the_cargo.py
   2. Write your robot's moves inside run() below.
-  3. Add your mission to the menu in main.py (two lines — see main.py).
+  3. Add one line to the MENU_ITEMS list in menu_config.py, like:
+        {"display": 3, "module": "mission_03_deliver_the_cargo", "function": "run"},
 """
 
 from robot import Robot, inches

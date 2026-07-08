@@ -84,6 +84,11 @@ After a mission finishes, the menu automatically moves to the next
 number — so in a match you can run your missions in order by just
 pressing CENTER each time.
 
+**What shows up in the menu lives in `menu_config.py`** — one line per
+slot, in the order they appear. `main.py` just reads that list and builds
+the menu for you, so you never have to edit `main.py`. See
+[Writing a new mission](#writing-a-new-mission) for how to add a slot.
+
 The sample missions:
 
 1. **Go Out and Turn** — drives forward 10 inches, turns 180° using the
@@ -99,9 +104,43 @@ F5 — handy while you're testing.
 1. Copy `mission_template.py` and name it after your mission, like
    `mission_03_deliver_the_cargo.py`.
 2. Write your moves inside the `run(robot)` function.
-3. Add it to the menu in `main.py` — one import and one `add_item` line.
+3. Add **one line** to the `MENU_ITEMS` list in `menu_config.py`.
 
-Common moves cheat-sheet:
+That third step is the only place the menu is defined. Each slot is a
+little dictionary. There are three kinds of slot:
+
+```python
+MENU_ITEMS = [
+    # 1. A plain-Python mission — runs its run(robot) function:
+    {"display": 1, "module": "mission_01_go_out_and_turn", "function": "run"},
+
+    # 2. A whole program (a block program OR a Python file) — picking it
+    #    runs the entire file from top to bottom. Leave "function" OUT:
+    {"display": 3, "module": "my_blocks_program"},
+
+    # 3. One "My Block" from a block program — called with no robot:
+    {"display": 4, "module": "arm_moves", "function": "lift_arm", "blocks": True},
+]
+```
+
+The keys:
+
+- **`display`** (required) — what shows on the hub screen: a number `0`–`99`,
+  a single letter like `"A"`, or a 5-row pixel pattern (list of 5 strings).
+- **`module`** (required) — the `.py` file's name, with no `.py` and no
+  dots. `"mission_01_go_out_and_turn"` means `mission_01_go_out_and_turn.py`.
+- **`function`** (optional) — the function inside that file to call, like
+  `"run"`. Leave it out to run the whole file top-to-bottom (kind 2 above).
+- **`blocks`** (optional, default `False`) — set `True` for a My Block from
+  a block program (kind 3). It's called with no robot and may be async.
+- **`enabled`** (optional, default `True`) — set `False` to hide a slot
+  without deleting it.
+
+The order of the list is the order the slots appear on the hub. The button
+behavior (LEFT/RIGHT to pick, CENTER to run/stop, BLUETOOTH to exit) is the
+same no matter which kind of slot it is.
+
+Common moves cheat-sheet (for `run(robot)` missions):
 
 ```python
 robot.drive_base.straight(inches(10))   # forward 10 inches
@@ -114,6 +153,75 @@ robot.hub.speaker.beep()                # beep!
 
 See the [Pybricks documentation](https://docs.pybricks.com/) for
 everything else your robot can do.
+
+## Using block programs
+
+Not everyone writes missions as Python. You can build **block programs**
+in the editor at [code.pybricks.com](https://code.pybricks.com/) — drag
+blocks together, and the editor turns them into a `.py` file the hub runs.
+Those files sync to your fork through the Pybricks Git extension just like
+Python missions, and they go in the menu the same way.
+
+A couple of things are different about block files:
+
+- **Block files can't import `robot.py`.** A block program is self-contained,
+  so it can't share your team's setup from `robot.py`. Instead, each block
+  file carries **its own device setup** inside it (which ports, wheel size,
+  and so on). That's built into the blocks at the top of the program.
+- **Two ways to put a block file in the menu:**
+  - As a **whole-program** slot (kind 2 above, no `"function"`) — picking
+    it runs the entire block program from top to bottom.
+  - As a **My Block** slot (kind 3, `"blocks": True`) — this calls one
+    named My Block out of a file whose top level is *setup only* (it sets
+    up devices but has no main program blocks of its own).
+
+### The `robot_setup.py` convention
+
+Because every block file has to repeat the same device setup, your team
+keeps **one** block file that contains *only* your setup — no mission
+blocks, just the "set up devices" part. Name it `robot_setup.py`.
+
+Make it by copying the provided `robot_setup_template.py` in the editor and
+changing the ports and sizes to match your robot. (Because it's a block
+file, you edit it at code.pybricks.com, not in a text editor — see
+["Files you shouldn't edit"](#files-you-shouldnt-edit) about the template.)
+
+The Pybricks Git extension uses your `robot_setup.py` as the starting point
+for **new** block programs, and later will be able to **update the setup in
+all your programs at once** when your robot changes — so you fix your setup
+in one place instead of every file.
+
+## Files you shouldn't edit
+
+A few files are the framework that makes the menu and the display work.
+They're listed as **protected** in `.pybricks-git.json`:
+
+- `main.py`, `menu.py`, `pix_display.py`
+- `mission_template.py`, `robot_setup_template.py`
+- `check_project.py` (and `.pybricks-git.json` itself)
+
+The Pybricks Git extension **won't save your changes** to these files, and
+it puts the original versions back the next time you Pull. That's on
+purpose — it keeps everyone's copy working the same way.
+
+When these framework files get improvements, pick them up on GitHub with
+**"Sync fork"**, then **Pull** in the editor. Your own files
+(`robot.py`, `menu_config.py`, your missions, and your `robot_setup.py`)
+are *not* protected — those are yours to edit freely.
+
+## Checking your project
+
+Before you commit, you can run a quick check on your computer to make sure
+your menu and files all line up:
+
+```bash
+python3 check_project.py
+```
+
+It compiles every `.py` file, checks that `menu_config.py` is valid and
+that every module it names actually exists, and validates
+`.pybricks-git.json` and your setup files. Fix anything it complains about
+and you're good to go.
 
 ## Troubleshooting
 
