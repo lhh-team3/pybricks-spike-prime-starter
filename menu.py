@@ -19,6 +19,14 @@ class Menu:
     Press BLUETOOTH button to exit the menu.
 
     Note: The stop button is set to BLUETOOTH to allow CENTER button to be used for menu selection.
+
+    A menu item's function doesn't have to be a plain mission function. main.py
+    builds items from menu_config.py, so a function here may be a loader-made
+    closure that imports and runs a whole program file, or that calls a block
+    program's "My Block" (including an async one). A whole-program item runs its
+    file's top level while CENTER is the stop button, so pressing CENTER stops it
+    the same as any mission — the swap/SystemExit/auto_increment handling below
+    works for all of these kinds for free.
     """
 
     def __init__(self, hub: Optional[PrimeHub] = None, context=None):
@@ -41,7 +49,11 @@ class Menu:
 
         Args:
             display: The number/char/pattern to display for this menu item.
-            function: The function to execute when this item is selected.
+            function: The function to execute when this item is selected. This
+                may be a plain mission function, or a loader-generated closure
+                from main.py that wraps a module import (a whole-program item
+                that runs a file's top level under the CENTER stop button) or
+                an async block program function.
         """
         if isinstance(display, int):
             if display < 0 or display > 99:

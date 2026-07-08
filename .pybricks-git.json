@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "menuConfig": "menu_config.py",
+  "setupTemplate": "robot_setup_template.py",
+  "teamSetup": "robot_setup.py",
+  "protected": [
+    ".pybricks-git.json",
+    "main.py",
+    "menu.py",
+    "pix_display.py",
+    "mission_template.py",
+    "robot_setup_template.py",
+    "check_project.py"
+  ]
+}
