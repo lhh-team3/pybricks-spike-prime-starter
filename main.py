@@ -26,16 +26,31 @@ from menu import Menu
 from menu_config import MENU_ITEMS
 
 
-def _import_fresh(name):
-    """Import a module by name, running it fresh from the top every time.
+# Whole programs that already ran since the hub started this program.
+_ran_once = set()
 
-    We forget any cached copy FIRST, then import. That way a whole-program
-    item runs again the next time you pick it — even if a CENTER stop left
-    a half-imported copy of the file behind.
+
+def _import_fresh(name):
+    """Import a module by name, running it from the top.
+
+    Importing a file runs it, but only the FIRST time: after that the hub
+    remembers it and skips it. Desktop Python lets us forget the cached copy
+    (sys.modules) so it runs again every time. The hub's Pybricks firmware
+    has no sys.modules, so there a whole program runs once per start —
+    restart main.py to run it again. (Use a "function" slot instead if you
+    want a mission you can run over and over.)
     """
-    if name in sys.modules:
-        del sys.modules[name]
+    modules = getattr(sys, "modules", None)
+    if modules is not None:
+        if name in modules:
+            del modules[name]
+    elif name in _ran_once:
+        print(name, "already ran. Restart the program to run it again.")
+        return
     __import__(name)
+    # Only mark it after it finished: if CENTER stopped it partway, the next
+    # pick at least tries again.
+    _ran_once.add(name)
 
 
 def _make_runner(item):
@@ -70,8 +85,27 @@ def _make_runner(item):
     # Plain mission → call function(robot), the usual way missions work.
     def run_plain(robot):
         module = __import__(module_name)
-        getattr(module, func_name)(robot)
+        try:
+            getattr(module, func_name)(robot)
+        finally:
+            # Runs whether the mission finished or CENTER stopped it.
+            _stop_robot(robot)
     return run_plain
+
+
+def _stop_robot(robot):
+    """Let go of the wheels and attachment motors after a mission.
+
+    Pybricks moves end by HOLDing: the motors keep pushing to stay where they
+    stopped (and with the gyro on, to keep facing the same way). A program
+    run on its own stops everything when it ends, but the menu keeps running,
+    so without this the robot would fight you if you picked it up and turned
+    it between missions.
+    """
+    robot.drive_base.stop()
+    for motor in (robot.attachment_1, robot.attachment_2):
+        if motor is not None:
+            motor.stop()
 
 
 # Does any slot need the robot? Only plain missions do. Block programs and
@@ -91,12 +125,18 @@ if needs_robot:
     from robot import Robot
     robot = Robot()
 
+# The "running" animation is picked in robot.py. Importing robot.py just
+# reads its settings; it doesn't build Robot() or claim any ports.
+# (getattr keeps older robot.py files without the setting working.)
+import robot as robot_settings
+animation = getattr(robot_settings, "RUNNING_ANIMATION", "left")
+
 # If we have a robot, hand it to every mission; otherwise the menu passes
 # the hub instead (block/whole-program runners ignore the argument anyway).
 if robot is not None:
-    menu = Menu(robot.hub, context=robot)
+    menu = Menu(robot.hub, context=robot, running_animation=animation)
 else:
-    menu = Menu()
+    menu = Menu(running_animation=animation)
 
 # Turn each slot from menu_config.py into a menu item. If one slot is broken
 # (a bad display number, a missing "module"...), we skip just that one and

@@ -20,13 +20,13 @@ There are no tests, build step, or lint config wired up. `black` is in `requirem
 ## Architecture
 
 ### `robot.py` — single source of truth for hardware config
-The only file teams edit when their robot's build changes. An "EDIT THIS SECTION" banner at the top holds constants: wheel ports/directions, `WHEEL_DIAMETER_MM`, `AXLE_TRACK_MM`, attachment motor ports, sensor ports, `USE_GYRO`. Optional hardware uses `None` (some teams have one attachment motor and no sensors). The `Robot` class constructs `hub`, wheel motors, a `DriveBase` (with `use_gyro`), and sets each optional attribute (`attachment_1`, `attachment_2`, `color_sensor`, `distance_sensor`, `force_sensor`) to a device or `None`. Also exports `inches(n)` — Pybricks uses mm, FLL mats are measured in inches. Hardware is deliberately constructed in `Robot.__init__`, not at import time, so a missing motor fails at a clear call site.
+The only file teams edit when their robot's build changes. An "EDIT THIS SECTION" banner at the top holds constants: wheel ports/directions, `WHEEL_DIAMETER_MM`, `AXLE_TRACK_MM`, attachment motor ports, sensor ports, `USE_GYRO`, and `RUNNING_ANIMATION` (what the display shows while a menu item runs). Optional hardware uses `None` (some teams have one attachment motor and no sensors). The `Robot` class constructs `hub`, wheel motors, a `DriveBase` (with `use_gyro`), and sets each optional attribute (`attachment_1`, `attachment_2`, `color_sensor`, `distance_sensor`, `force_sensor`) to a device or `None`. Also exports `inches(n)` — Pybricks uses mm, FLL mats are measured in inches. Hardware is deliberately constructed in `Robot.__init__`, not at import time, so a missing motor fails at a clear call site.
 
 ### Mission files — `mission_NN_<name>.py`
 Every mission has the same shape: a module docstring, `def run(robot):` with the moves, and an `if __name__ == "__main__": run(Robot())` block so it is standalone-runnable (open the file, press F5). The `NN` in the filename matches the `display` given in `menu_config.py` — the number shown on the hub's display. `mission_template.py` is the copy-me skeleton and is intentionally not listed in the menu.
 
 ### `menu_config.py` — the menu contract (team-owned; extension-regenerated)
-The single source of truth for what appears in the hub menu. File = optional docstring/comments + exactly one top-level `MENU_ITEMS = [<dict literals>]`. Values are limited to int/str/bool/None/list-of-str so it is machine-parseable (`ast.literal_eval` semantics) — the Pybricks Git extension's menu-manager rewrites the whole file from its own template in a later phase, so **comments inside the `MENU_ITEMS` list are not preserved**. Per-slot schema:
+The single source of truth for what appears in the hub menu. File = optional docstring/comments + an optional **bundle-hint block** + exactly one top-level `MENU_ITEMS = [<dict literals>]`. Values are limited to int/str/bool/None/list-of-str so it is machine-parseable (`ast.literal_eval` semantics) — the Pybricks Git extension's menu-manager rewrites the whole file from its own template in a later phase, so **comments inside the `MENU_ITEMS` list are not preserved**. Per-slot schema:
 
 - `display` (required): int `0`–`99`, single-char str, or list of exactly 5 pattern strings (same semantics as `pix_display`).
 - `module` (required): bare module name, no `.py`, no dots.
@@ -34,6 +34,16 @@ The single source of truth for what appears in the hub menu. File = optional doc
 - `blocks` (optional, default `False`): the function is a My Block from a block file.
 - `enabled` (optional, default `True`): disabled items are skipped at load but kept in the file.
 - List order = menu order.
+
+**Bundle hints (required for every listed module).** `main.py` reaches missions via `__import__(name)` with a *string* from `MENU_ITEMS`, and both `pybricksdev` bundlers resolve dependencies statically (v1.1: CPython `modulefinder`; v2.x: `IMPORT_NAME` opcodes via mpy-tool), as does code.pybricks.com. A module named only as a string is never uploaded → `ImportError: no module named ...` on CENTER. So `menu_config.py` carries, between the docstring and `MENU_ITEMS`:
+
+```python
+_BUNDLE_HINTS = False
+if _BUNDLE_HINTS:
+    import mission_01_go_out_and_turn
+```
+
+The guard **must** be a runtime name lookup — `if False:`/`if 0:` is folded away by both the CPython peephole optimizer and mpy-cross, emitting no `IMPORT_NAME` and bundling nothing. Imports stay guarded (never bare) because importing a whole-program item *runs* it and a `blocks: True` module runs its device setup. The extension's menu-manager must emit this block when it regenerates the file; older versions drop it.
 
 Three item kinds:
 1. **Plain function item** — `function` set, `blocks` absent/False. Called as `fn(robot)` (the existing convention).
@@ -43,9 +53,10 @@ Three item kinds:
 ### `main.py` — thin loader over `menu_config.py`
 No longer hand-registers missions. It reads `MENU_ITEMS`, builds a `Menu`, and wraps each entry in a runner:
 
-- `_import_fresh(name)`: `del sys.modules[name]` (guarded) before `__import__`, so **whole-program items are re-runnable** — including after a CENTER interrupt leaves a partially-executed module cached. Whole-program items import fresh on every run.
+- `_import_fresh(name)`: on desktop Python it drops `sys.modules[name]` before `__import__` so the file re-runs. **On the hub there is no `sys.modules`**, so a whole-program item runs **once per start of `main.py`**; later picks print "already ran" (tracked in `_ran_once`, set only after the import finishes, so a CENTER-interrupted run can be retried). Repeatable missions should use a `"function"` slot.
 - Function items (kinds 1 and 3) **import once and stay cached** — the module's top-level device setup runs a single time, not per menu press.
 - `_make_runner(item)` dispatches the three call shapes above.
+- **Plain function items release the robot afterwards** (`_stop_robot`, in a `finally`, so it also runs on a CENTER interrupt): `drive_base.stop()` plus `stop()` on any attachment motor. Pybricks moves default to `then=Stop.HOLD`, and because `main.py` keeps running, the shared `Robot` would otherwise keep holding position — with the gyro on, the robot turns back to its last heading if picked up and rotated between missions. Whole-program and My Block items own their devices, so this can't reach them.
 - **Lazy `Robot()`**: the shared `Robot` is only constructed if some enabled item is a plain (non-blocks) function item. An **all-blocks** menu never constructs `Robot()`, so it never claims ports via `robot.py` defaults (block modules bring their own setup).
 - Broken/malformed config entries print a skip message and the rest of the menu still loads; zero valid items falls through to `Menu`'s existing `?` display.
 - Still calls `menu.run(auto_increment=True)` (advance to the next slot after each run — match-friendly).
@@ -66,6 +77,9 @@ Helpers for drawing on the hub's 5×5 display.
 - `display_pattern(hub, pattern)`: `pattern` is exactly 5 strings of length 5. `' '` or `'0'` = off; digits `'1'`–`'9'` = brightness × 10; anything else = 100.
 - `display_number(hub, n)` for 0–99: 0–9 use the built-in single-char glyph, 10–19 use hand-drawn patterns from `Patterns.numbers`, 20+ use the built-in scrolling number renderer.
 - `Patterns.numbers` only goes up to index 19 — do not index past it.
+- `start_scanner(hub, edge="left")`: "Knight Rider" light sweeping back and forth along one edge (`"left"`/`"right"`/`"top"`/`"bottom"`). `start_border_chase(hub, clockwise=True)`: a light running around the 16 outer pixels. Both build frames via `_start_path_animation` and play them with `hub.display.animate` (runs in the background; any later display call stops it).
+- `start_running_animation(hub, style)`: dispatches on a style name — an edge name, `"clockwise"`/`"counterclockwise"`, or `None` (display off). An unknown name prints a warning and falls back to `"left"` rather than raising, so a typo can't break a mission run. `Menu(running_animation=...)` calls it while an item runs; `main.py` reads the value from `RUNNING_ANIMATION` in `robot.py` (via `getattr`, default `"left"`) because `main.py`/`menu.py` are protected and `robot.py` is the team-editable file. Importing `robot` only reads constants — it never constructs `Robot()`, so the lazy-`Robot()` guarantee holds.
+- Avoid negative-step slices and `reversed()` in hub code; build reversed lists with an index `range` instead (not all MicroPython builds support them).
 
 ### `.pybricks-git.json` — repo manifest read by the extension
 Repo-root JSON, read by the Pybricks Git extension **from the git tree**, never synced into the editor (the extension's `.py`-only filter keeps it out; it's protected so it can't be clobbered). `schemaVersion` gates parsing; unknown keys are ignored. Keys: `menuConfig` (`menu_config.py`), `setupTemplate` (`robot_setup_template.py`), `teamSetup` (`robot_setup.py`), and `protected` — a list of framework paths. **Protected** means: on commit the extension keeps the git tree's version and drops the editor's edits (reporting a skip), and on pull it restores those files — a git-layer guard only, no in-editor enforcement. `robot.py`, `menu_config.py`, sample missions, and the team's `robot_setup.py` are intentionally NOT protected.
@@ -80,12 +94,13 @@ A block program authored at code.pybricks.com is saved as a `.py` file whose **l
 - **`robot_setup_template.py` must only ever be authored via code.pybricks.com** — line-1 JSON and the generated Python must stay in sync, which hand-editing breaks.
 
 ## `check_project.py` — desktop verifier
-CPython-only (does **not** run on the hub). `py_compile`s every `.py`; `ast`-parses `menu_config.py` (docstring + a single `MENU_ITEMS` literal assignment, full schema validation, every referenced module file exists); validates `.pybricks-git.json` (schema + listed files exist); validates setup files (line-1 sentinel present, JSON parses, has `blockGlobalSetup`, no `run_task`). Run it before committing: `python3 check_project.py`.
+CPython-only (does **not** run on the hub). `py_compile`s every `.py`; `ast`-parses `menu_config.py` (docstring + optional `_BUNDLE_HINTS` block + a single `MENU_ITEMS` literal assignment, full schema validation, every referenced module file exists; the hint block is skipped by `_strip_bundle_hints`, which still rejects anything but plain `import` lines inside the guard); validates `.pybricks-git.json` (schema + listed files exist); validates setup files (line-1 sentinel present, JSON parses, has `blockGlobalSetup`, no `run_task`). Run it before committing: `python3 check_project.py`.
 
 ## Pybricks/MicroPython gotchas
 
-- **`del sys.modules[name]` re-import idiom is unverified on Pybricks firmware.** `main.py` uses it so whole-program items re-run on each menu press; if it misbehaves on-hub the fallback is "whole-program items run once per boot" (or an `exec`-based loader). **Verify on real hardware** when touching the loader.
-- **`usys`/`sys` fallback**: import `usys` and fall back to `sys` — Pybricks exposes the module under both names across firmware versions. `main.py`'s `del sys.modules` lookup must use whichever resolved.
+- **Pybricks `usys` has no `modules`** (verified on a SPIKE Prime hub: `AttributeError: 'module' object has no attribute 'modules'`). There is no way to clear the import cache on-hub, and no filesystem for an `exec`-based loader, so whole-program items run once per start. Always reach it via `getattr(sys, "modules", None)`.
+- **`usys`/`sys` fallback**: import `usys` and fall back to `sys` — Pybricks exposes the module under both names across firmware versions.
+- **`if __name__ == "__main__":` never runs from the menu** — the menu imports the file, so `__name__` is the module name. A file like `dance_party.py` whose only runnable code is under that guard must be a `"function"` slot (e.g. `"function": "run"`), not a whole-program slot.
 - **Coroutine detection is `hasattr(result, "send")`** — how a `blocks: True` My Block's return value is recognized as async on MicroPython (no `inspect.iscoroutine`). Drive it with `run_task`.
 - **Double device construction**: if a block module and `Robot()` both claim the same ports in one session, the port is initialized twice. Mitigated by the lazy `Robot()` (an all-blocks menu never builds one); the full fix arrives with the extension's phase-4 setup-splice. Document, don't fight it, for now.
 

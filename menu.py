@@ -6,7 +6,7 @@ except ImportError:
 from pybricks.hubs import PrimeHub
 from pybricks.parameters import Button
 from pybricks.tools import wait
-from pybricks.parameters import Color, Icon
+from pybricks.parameters import Color
 import pix_display
 
 
@@ -29,7 +29,12 @@ class Menu:
     works for all of these kinds for free.
     """
 
-    def __init__(self, hub: Optional[PrimeHub] = None, context=None):
+    def __init__(
+        self,
+        hub: Optional[PrimeHub] = None,
+        context=None,
+        running_animation: Optional[str] = "left",
+    ):
         """
         Initialize the menu system.
 
@@ -37,9 +42,12 @@ class Menu:
             hub: PrimeHub instance. If None, creates a new instance.
             context: Object passed to each menu item's function when it runs.
                 If None, the hub is passed instead.
+            running_animation: What the display shows while an item runs.
+                See pix_display.start_running_animation for the choices.
         """
         self.hub = hub if hub is not None else PrimeHub()
         self.context = context
+        self.running_animation = running_animation
         self.menu_items = []
         self.current_index = 0
 
@@ -110,8 +118,9 @@ class Menu:
         current_item = self.get_current_item()
         if current_item and current_item["function"]:
             try:
-                # Show a brief confirmation that function is executing
-                self.hub.display.icon(Icon.TRUE)
+                # Show an animation while the function is executing. It
+                # runs in the background and stops when the menu redraws.
+                pix_display.start_running_animation(self.hub, self.running_animation)
 
                 # Wait for CENTER release before making it the stop button
                 self._wait_for_release(Button.CENTER)
