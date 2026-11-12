@@ -28,7 +28,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      pages: ${{ steps.pages.outcome }}
+      pages: ${{ steps.pages.outputs.on }}
     steps:
       - uses: actions/checkout@v7
       - run: python3 .github/cheat_sheet.py
@@ -38,23 +38,27 @@ jobs:
           # Upload the page itself, not a zip, so it opens right in a browser.
           archive: false
 
-      # This step fails when Pages is not turned on for this repo. That is
-      # fine: the run stays green and the publish job below is skipped.
+      # Is GitHub Pages turned on for this repo? If not, that is fine: the
+      # publish job below is skipped and the run stays green.
       - id: pages
-        uses: actions/configure-pages@v6
-        continue-on-error: true
-      - if: steps.pages.outcome != 'success'
-        run: echo "::notice::GitHub Pages is off, so there is no permanent link. Turn it on in Settings > Pages > Source > GitHub Actions."
-      - if: steps.pages.outcome == 'success'
-        run: mkdir _site && cp cheat_sheet.html _site/index.html
-      - if: steps.pages.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source=$(gh api "repos/${{ github.repository }}/pages" --jq .build_type 2>/dev/null || true)
+          if [ "$source" = "workflow" ]; then
+            echo "on=true" >> "$GITHUB_OUTPUT"
+            mkdir _site && cp cheat_sheet.html _site/index.html
+          else
+            echo "::notice::No permanent link yet. To get one, a repo admin sets Settings > Pages > Source to GitHub Actions."
+          fi
+      - if: steps.pages.outputs.on == 'true'
         uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
   publish:
     needs: build
-    if: needs.build.outputs.pages == 'success'
+    if: needs.build.outputs.pages == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
