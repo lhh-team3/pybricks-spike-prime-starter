@@ -3,6 +3,10 @@
 Drive forward 10 inches, turn all the way around (180 degrees) using
 the gyro, and stop. After this mission the robot is facing back the
 way it came — ready for Mission 2: Come Back Home.
+
+R: Anywhere with 2 feet of open space in front of the robot
+A: None
+P: 1
 """
 
 from robot import Robot, inches

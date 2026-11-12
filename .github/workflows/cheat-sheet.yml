@@ -1,0 +1,24 @@
+# Every push makes a printable cheat sheet of each mission's starting
+# position (the R.A.P. comments), in menu order. Find it on the repo's
+# "Actions" tab: click the newest run, then download cheat_sheet.html
+# from "Artifacts" at the bottom of the page.
+name: Cheat sheet
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cheat-sheet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 .github/cheat_sheet.py
+      - uses: actions/upload-artifact@v7
+        with:
+          path: cheat_sheet.html
+          # Upload the page itself, not a zip, so it opens right in a browser.
+          archive: false

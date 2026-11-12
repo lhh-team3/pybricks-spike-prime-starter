@@ -3,6 +3,10 @@
 Drive forward 10 inches. Run this after Mission 1 (Go Out and Turn):
 since the robot already turned around, driving forward brings it back
 to where it started.
+
+R: Right where Mission 1 left it - don't move the robot
+A: None
+P: 2
 """
 
 from robot import Robot, inches

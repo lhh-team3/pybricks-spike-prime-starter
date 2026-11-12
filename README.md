@@ -319,7 +319,47 @@ that every module it names actually exists, and validates
 `.pybricks-git.json` and your setup files. Fix anything it complains about
 and you're good to go.
 
-### 11. Troubleshooting
+### 11. Starting-position cheat sheet
+
+Every mission should say how to set the robot down before it runs. Write
+that as an **R.A.P.** comment:
+
+- **R** — where the **R**obot goes and which way it faces
+- **A** — which **A**ttachment is on, and how it starts
+- **P** — the **P**rogram number in the menu
+
+In a Python mission, put it in the docstring at the top of the file:
+
+```python
+"""Mission 3: Deliver the Cargo.
+
+R: Back against the south wall, left wheel on the second thick line
+A: Forks, all the way down
+P: 3
+"""
+```
+
+In a block program, use comment blocks at the top of the program (or at
+the top of a My Block): `R South wall...`, `A Forks...`, `P 3`.
+
+Every time you push to GitHub, the **Cheat sheet** action reads
+`menu_config.py`, collects the R and A lines of each menu slot in menu
+order, and builds one printable page:
+
+1. On GitHub, open your repo's **Actions** tab and click the newest
+   **Cheat sheet** run. (On a fork, GitHub asks you to turn Actions on the
+   first time — click the green button.)
+2. Under **Artifacts** at the bottom, download `cheat_sheet.html` and open
+   it in a browser.
+3. Slide **Text size** until everything fits on one page, then **Print**.
+
+The number on the sheet always comes from `menu_config.py`, so the P line
+is just a reminder for you. A slot with no R.A.P. comment still shows up
+on the sheet, with a note saying which file needs one.
+
+You can also build it on your own computer: `python3 .github/cheat_sheet.py`.
+
+### 12. Troubleshooting
 
 - **Hub not found / connection times out** — Is the hub turned on and
   nearby? Does the name in `.vscode/settings.json` exactly match your

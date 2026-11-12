@@ -6,6 +6,12 @@ To make a new mission:
   2. Write your robot's moves inside run() below.
   3. Add one line to the MENU_ITEMS list in menu_config.py, like:
         {"display": 3, "module": "mission_03_deliver_the_cargo", "function": "run"},
+  4. Fill in the R.A.P. lines below. They go on your team's printable
+     cheat sheet, so you know how to set the robot down at the table.
+
+R: where the Robot goes and which way it faces
+A: which Attachment is on, and how it starts (up, down, etc.)
+P: the Program number from the menu
 """
 
 from robot import Robot, inches
