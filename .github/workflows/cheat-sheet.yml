@@ -1,19 +1,34 @@
-# Every push makes a printable cheat sheet of each mission's starting
-# position (the R.A.P. comments), in menu order. Find it on the repo's
-# "Actions" tab: click the newest run, then download cheat_sheet.html
-# from "Artifacts" at the bottom of the page.
+# Every push to main makes a printable cheat sheet of each mission's
+# starting position (the R.A.P. comments), in menu order.
+#
+# Where to find it:
+#   - With GitHub Pages turned on (repo Settings > Pages > Source:
+#     "GitHub Actions"), it is always at
+#     https://<owner>.github.io/<repo>/
+#   - Either way, it is on the repo's "Actions" tab: click the newest
+#     run, then download cheat_sheet.html from "Artifacts" at the bottom.
 name: Cheat sheet
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+# Two quick pushes in a row: only the newest sheet gets published.
+concurrency:
+  group: cheat-sheet
+  cancel-in-progress: true
 
 jobs:
-  cheat-sheet:
+  build:
     runs-on: ubuntu-latest
+    outputs:
+      pages: ${{ steps.pages.outcome }}
     steps:
       - uses: actions/checkout@v7
       - run: python3 .github/cheat_sheet.py
@@ -22,3 +37,28 @@ jobs:
           path: cheat_sheet.html
           # Upload the page itself, not a zip, so it opens right in a browser.
           archive: false
+
+      # This step fails when Pages is not turned on for this repo. That is
+      # fine: the run stays green and the publish job below is skipped.
+      - id: pages
+        uses: actions/configure-pages@v6
+        continue-on-error: true
+      - if: steps.pages.outcome != 'success'
+        run: echo "::notice::GitHub Pages is off, so there is no permanent link. Turn it on in Settings > Pages > Source > GitHub Actions."
+      - if: steps.pages.outcome == 'success'
+        run: mkdir _site && cp cheat_sheet.html _site/index.html
+      - if: steps.pages.outcome == 'success'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  publish:
+    needs: build
+    if: needs.build.outputs.pages == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

@@ -346,12 +346,23 @@ Every time you push to GitHub, the **Cheat sheet** action reads
 `menu_config.py`, collects the R and A lines of each menu slot in menu
 order, and builds one printable page:
 
-1. On GitHub, open your repo's **Actions** tab and click the newest
-   **Cheat sheet** run. (On a fork, GitHub asks you to turn Actions on the
-   first time — click the green button.)
-2. Under **Artifacts** at the bottom, download `cheat_sheet.html` and open
-   it in a browser.
-3. Slide **Text size** until everything fits on one page, then **Print**.
+1. Open your team's cheat sheet link:
+   `https://<your-github-name>.github.io/pybricks-spike-prime-starter/`
+   (for example `https://lhh-team4.github.io/pybricks-spike-prime-starter/`).
+   It is always the newest sheet — bookmark it. It updates a minute or two
+   after each push to `main`.
+2. Slide **Text size** until everything fits on one page, then **Print**.
+
+**One-time setup for the link** (a coach or repo admin does this once):
+
+- On a fork, GitHub asks you to turn Actions on the first time you open
+  the **Actions** tab — click the green button.
+- In the repo's **Settings → Pages**, set **Source** to **GitHub Actions**.
+  Then push something (or open **Actions → Cheat sheet → Run workflow**).
+
+Until Pages is turned on, the sheet is still made on every push: open the
+**Actions** tab, click the newest **Cheat sheet** run, and download
+`cheat_sheet.html` from **Artifacts** at the bottom.
 
 The number on the sheet always comes from `menu_config.py`, so the P line
 is just a reminder for you. A slot with no R.A.P. comment still shows up
